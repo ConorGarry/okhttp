@@ -42,6 +42,7 @@ import okhttp3.internal.tls.CertificateChainCleaner
 import okhttp3.internal.tls.OkHostnameVerifier
 import okhttp3.internal.toImmutableList
 import okhttp3.internal.ws.RealWebSocket
+import okhttp3.internal.ws.WebSocketWriter
 import okio.Sink
 import okio.Source
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
@@ -276,11 +277,15 @@ open class OkHttpClient internal constructor(
         random = Random(),
         pingIntervalMillis = pingIntervalMillis.toLong(),
         extensions = null, // Always null for clients.
-        minimumDeflateSize = minWebSocketMessageToCompress
+        minimumDeflateSize = minWebSocketMessageToCompress,
+        pingTask
     )
     webSocket.connect(this)
     return webSocket
   }
+
+  /** Our custom ping task. */
+  lateinit var pingTask: (WebSocketWriter) -> Unit
 
   open fun newBuilder(): Builder = Builder(this)
 

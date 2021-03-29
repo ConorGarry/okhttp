@@ -63,7 +63,11 @@ class RealWebSocket(
    */
   private var extensions: WebSocketExtensions?,
   /** If compression is negotiated, outbound messages of this size and larger will be compressed. */
-  private var minimumDeflateSize: Long
+  private var minimumDeflateSize: Long,
+
+  /** Custom ping task, Vero has its own bespoke ping/pong pattern. */
+  private val pingTask: ((WebSocketWriter) -> Unit)? = null
+
 ) : WebSocket, WebSocketReader.FrameCallback {
   private val key: String
 
@@ -330,7 +334,14 @@ class RealWebSocket(
 
   @Throws(IOException::class)
   override fun onReadMessage(text: String) {
-    listener.onMessage(this, text)
+    // Injects Vero ping/pong protocol.
+    if (text.endsWith("\"pong\"]")) {
+      onReadPong("pong".toByteArray().toByteString())
+      // If debug pong is needed in main project, uncomment this...
+      // listener.onMessage(this, text)
+    } else {
+      listener.onMessage(this, text)
+    }
   }
 
   @Throws(IOException::class)
@@ -566,7 +577,11 @@ class RealWebSocket(
     }
 
     try {
-      writer.writePing(ByteString.EMPTY)
+      if (pingTask != null) {
+        pingTask.invoke(writer)
+      } else {
+        writer.writePing(ByteString.EMPTY)
+      }
     } catch (e: IOException) {
       failWebSocket(e, null)
     }
